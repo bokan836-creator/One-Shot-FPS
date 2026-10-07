@@ -1,71 +1,46 @@
+```python
 import json
 import math
 import time
 import uuid
+import os
 
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-
 HOST = "0.0.0.0"
-PORT = 8000
+PORT = int(os.environ.get("PORT", 8000))
 
 players = {}
 
-
 def clean_players():
     now = time.time()
-
     for pid in list(players):
         if now - players[pid]["last"] > 5:
             del players[pid]
 
-
 class Handler(SimpleHTTPRequestHandler):
 
     def translate_path(self, path):
-
         if path == "/" or path == "/index.html":
             return "static/index.html"
-
         return "static/" + path.lstrip("/")
 
-
     def send_json(self, data, code=200):
-
         raw = json.dumps(data).encode()
-
         self.send_response(code)
-        self.send_header(
-            "Content-Type",
-            "application/json"
-        )
-        self.send_header(
-            "Access-Control-Allow-Origin",
-            "*"
-        )
-        self.send_header(
-            "Content-Length",
-            str(len(raw))
-        )
-
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
-
         self.wfile.write(raw)
 
-
     def do_GET(self):
-
         parsed = urlparse(self.path)
 
         if parsed.path == "/state":
-
             query = parse_qs(parsed.query)
-
-            pid = query.get(
-                "id",
-                [""]
-            )[0]
+            pid = query.get("id", [""])[0]
 
             clean_players()
 
@@ -81,14 +56,11 @@ class Handler(SimpleHTTPRequestHandler):
                 "players": snapshot,
                 "me": pid
             })
-
             return
 
         super().do_GET()
 
-
     def do_POST(self):
-
         length = int(
             self.headers.get(
                 "Content-Length",
@@ -97,44 +69,28 @@ class Handler(SimpleHTTPRequestHandler):
         )
 
         try:
-
             data = json.loads(
                 self.rfile.read(length)
                 or b"{}"
             )
-
         except:
-
             data = {}
-
-
-        # OYUNCU KATILMA
 
         if self.path == "/join":
 
             pid = uuid.uuid4().hex[:8]
 
             players[pid] = {
-
-                "x": float(
-                    data.get("x", 0)
-                ),
-
-                "y": float(
-                    data.get("y", 0)
-                ),
-
+                "x": float(data.get("x", 0)),
+                "y": float(data.get("y", 0)),
                 "a": 0,
-
                 "hp": 100,
-
                 "name": str(
                     data.get(
                         "name",
                         "Player"
                     )
                 )[:16],
-
                 "last": time.time()
             }
 
@@ -143,9 +99,6 @@ class Handler(SimpleHTTPRequestHandler):
             })
 
             return
-
-
-        # OYUNCU HAREKETİ
 
         if self.path == "/update":
 
@@ -201,9 +154,6 @@ class Handler(SimpleHTTPRequestHandler):
             })
 
             return
-
-
-        # ATEŞ ETME
 
         if self.path == "/shoot":
 
@@ -272,7 +222,6 @@ class Handler(SimpleHTTPRequestHandler):
                             best_distance = distance
                             hit = oid
 
-
                 if hit:
 
                     players[hit]["hp"] -= 25
@@ -280,7 +229,6 @@ class Handler(SimpleHTTPRequestHandler):
                     if players[hit]["hp"] <= 0:
 
                         players[hit]["hp"] = 100
-
                         players[hit]["x"] = 0
                         players[hit]["y"] = 0
 
@@ -291,34 +239,39 @@ class Handler(SimpleHTTPRequestHandler):
 
                     return
 
-
             self.send_json({
                 "hit": False
             })
 
             return
 
-
         self.send_json({
             "error": "Not found"
         }, 404)
 
-
-    def log_message(self, format, *args):
-
+    def log_message(
+        self,
+        format,
+        *args
+    ):
         print(
             format % args
         )
 
 
-print("One Shot FPS server başlatılıyor...")
-print("http://127.0.0.1:8000")
+print(
+    "BARANSOFT server başlatılıyor..."
+)
 
+print(
+    "Server port:",
+    PORT
+)
 
 server = ThreadingHTTPServer(
     (HOST, PORT),
     Handler
 )
 
-
 server.serve_forever()
+```
